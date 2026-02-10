@@ -1,0 +1,5 @@
+.DS_Store
+*.swp
+*.swo
+raw_to_styled_jpeg
+__pycache__/
