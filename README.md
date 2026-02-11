@@ -2,31 +2,19 @@
 
 Personal marketplace of reusable agent skills for both **Claude Code** and **OpenAI Codex**.
 
-## Agent Skills Standard
+## Compatibility
 
-This repo follows the [Agent Skills standard](https://agentskills.io/specification):
+- **Claude Code**: via `.claude-plugin/marketplace.json` + `plugins/*`.
+- **Codex**: install skill bundles from `plugins/<plugin>/skills/<plugin>/` into `${CODEX_HOME:-$HOME/.codex}/skills`.
 
-- Each skill has a required `SKILL.md` with YAML frontmatter (`name`, `description`).
-- Optional helper folders: `scripts/`, `references/`, `assets/`.
-- Skills are designed for progressive disclosure (metadata first, details on demand).
+## Installation Scope Policy
 
-## Compatibility (Claude Code + Codex)
+Use **user-level install** by default for both tools.
 
-This repository supports both runtimes:
-
-- **Claude Code** via plugin marketplace files under `.claude-plugin/` and `plugins/`.
-- **Codex** via skill folders under `skills/` and user-level install scripts.
-
-## User-Level Installation Policy
-
-Use **user-level install** by default for both tools:
-
-- Claude Code: install without `--scope project`.
+- Claude: install without `--scope project`.
 - Codex: install to `${CODEX_HOME:-$HOME/.codex}/skills`.
 
-This avoids workspace/worktree scope drift and makes skills available globally.
-
-## Repository Structure
+## Repository Structure (Plugins-Only)
 
 ```text
 ashwch-agent-skills-marketplace/
@@ -45,19 +33,11 @@ ashwch-agent-skills-marketplace/
 │               ├── agents/openai.yaml
 │               ├── scripts/
 │               └── references/
-├── skills/
-│   └── sony-raw-styled-jpeg/   # Canonical copy for Codex
-│       ├── SKILL.md
-│       ├── README.md
-│       ├── agents/
-│       ├── scripts/
-│       └── references/
 ├── scripts/
 │   ├── install-skill.sh
 │   ├── install-all.sh
 │   ├── uninstall-skill.sh
 │   ├── uninstall-all.sh
-│   ├── sync-skill-to-plugin.sh
 │   ├── claude-install.sh
 │   └── claude-uninstall.sh
 ├── AGENTS.md
@@ -72,64 +52,56 @@ ashwch-agent-skills-marketplace/
 | --- | --- |
 | `sony-raw-styled-jpeg` | Convert Sony `.ARW` images into high-quality content-aware JPEG while preserving EXIF and validating timestamps. |
 
----
+## Claude Code: Install (User Scope)
 
-## Install for Claude Code (User Scope)
-
-### 1) Add marketplace
+1. Add marketplace:
 
 ```bash
 claude plugin marketplace add ashwch/ashwch-agent-skills-marketplace
 ```
 
-### 2) Install plugin (user scope)
+2. Install plugin (user scope):
 
 ```bash
 claude plugin install sony-raw-styled-jpeg@ashwch
 ```
 
-Do **not** pass `--scope project` unless you explicitly need project-local behavior.
-
-### 3) Use slash commands
+3. Use slash commands:
 
 ```text
-/sony-raw-styled-jpeg:convert   # Interactive pipeline
-/sony-raw-styled-jpeg:exact     # Deterministic exact pipeline
+/sony-raw-styled-jpeg:convert
+/sony-raw-styled-jpeg:exact
 ```
 
-### Optional helper script
+Optional helper:
 
 ```bash
 bash scripts/claude-install.sh
 ```
 
----
+## Claude Code: Uninstall
 
-## Uninstall for Claude Code
-
-### Uninstall user-scoped plugin
+User scope:
 
 ```bash
 claude plugin uninstall sony-raw-styled-jpeg@ashwch
 ```
 
-### If accidentally installed at project scope
+If it was installed in project scope accidentally:
 
 ```bash
 claude plugin uninstall sony-raw-styled-jpeg@ashwch --scope project
 ```
 
-### Optional helper script
+Optional helper:
 
 ```bash
 bash scripts/claude-uninstall.sh
 ```
 
----
+## Codex: Install (User Scope)
 
-## Install for Codex (User Scope)
-
-### Option A: From local clone (recommended)
+From local clone:
 
 ```bash
 gh repo clone ashwch/ashwch-agent-skills-marketplace
@@ -137,33 +109,31 @@ cd ashwch-agent-skills-marketplace
 bash scripts/install-skill.sh sony-raw-styled-jpeg
 ```
 
-Install all skills:
+Install all plugin-backed skills:
 
 ```bash
 bash scripts/install-all.sh
 ```
 
-### Option B: Direct from GitHub with Skill Installer
+Direct from GitHub with skill installer:
 
 ```bash
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 python3 "$CODEX_HOME/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
   --repo ashwch/ashwch-agent-skills-marketplace \
   --ref main \
-  --path skills/sony-raw-styled-jpeg
+  --path plugins/sony-raw-styled-jpeg/skills/sony-raw-styled-jpeg
 ```
 
-### Use in Codex
+Use in Codex:
 
 ```text
 Use $sony-raw-styled-jpeg to convert ARW images into styled JPEGs and validate EXIF timestamps.
 ```
 
----
+## Codex: Uninstall
 
-## Uninstall for Codex
-
-Uninstall one skill:
+Uninstall one:
 
 ```bash
 bash scripts/uninstall-skill.sh sony-raw-styled-jpeg
@@ -182,50 +152,16 @@ CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 rm -rf "$CODEX_HOME/skills/sony-raw-styled-jpeg"
 ```
 
----
-
-## Keeping Claude + Codex Copies in Sync
-
-Canonical source is:
-
-- `skills/<name>/`
-
-Claude plugin copy is:
-
-- `plugins/<name>/skills/<name>/`
-
-After editing a canonical skill, sync it to plugin copy:
-
-```bash
-bash scripts/sync-skill-to-plugin.sh sony-raw-styled-jpeg
-```
-
----
-
-## Sony Skill: Outputs and Guarantees
-
-Expected output artifacts:
+## Sony Skill Outputs
 
 - `<output>/MONxxxxx.jpg`
 - `<output>/style_report.csv`
 - `<output>/exif_validation.txt`
 
-Validation guarantee:
+Details:
 
-- `DateTimeOriginal`, `DateTimeDigitized`, and `TIFF DateTime` parity checks are enforced.
-
-Deep technical documentation:
-
-- `skills/sony-raw-styled-jpeg/references/PIPELINE_FIRST_PRINCIPLES.md`
-
-## Update Workflow
-
-```bash
-git pull
-bash scripts/install-skill.sh sony-raw-styled-jpeg
-# Claude users can reinstall plugin if needed:
-claude plugin install sony-raw-styled-jpeg@ashwch
-```
+- `plugins/sony-raw-styled-jpeg/skills/sony-raw-styled-jpeg/README.md`
+- `plugins/sony-raw-styled-jpeg/skills/sony-raw-styled-jpeg/references/PIPELINE_FIRST_PRINCIPLES.md`
 
 ## License
 
