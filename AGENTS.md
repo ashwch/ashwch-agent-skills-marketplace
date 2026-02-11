@@ -12,9 +12,10 @@ Maintain a personal marketplace of reusable agent skills for both Claude Code an
 4. Every skill must include `SKILL.md` with YAML frontmatter:
    - `name`
    - `description`
-5. Skill folder name must match `name` exactly (kebab-case).
-6. Keep commands portable; avoid machine-specific paths in docs.
-7. Prefer user-level install guidance over project-level guidance.
+5. Every skill must include `README.md` for human-facing quick usage and file map.
+6. Skill folder name must match `name` exactly (kebab-case).
+7. Keep commands portable; avoid machine-specific paths in docs.
+8. Prefer user-level install guidance over project-level guidance.
 
 ## Claude Packaging Rules
 

@@ -10,6 +10,7 @@
 3. Include required `SKILL.md` frontmatter:
    - `name`
    - `description`
+4. Add `README.md` inside each skill directory (`skills/<skill-name>/README.md`).
 
 ## Sync Flow
 
@@ -24,4 +25,5 @@ bash scripts/sync-skill-to-plugin.sh <skill-name>
 - Marketplace manifest updated if plugin list changed.
 - Command entrypoints exist for Claude plugin.
 - Codex install scripts validated (`install-skill.sh`, `uninstall-skill.sh`).
+- Skill README exists and reflects current scripts/outputs.
 - README install/uninstall steps remain accurate and user-level by default.

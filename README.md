@@ -41,11 +41,17 @@ ashwch-agent-skills-marketplace/
 │       └── skills/
 │           └── sony-raw-styled-jpeg/
 │               ├── SKILL.md
+│               ├── README.md
 │               ├── agents/openai.yaml
 │               ├── scripts/
 │               └── references/
 ├── skills/
 │   └── sony-raw-styled-jpeg/   # Canonical copy for Codex
+│       ├── SKILL.md
+│       ├── README.md
+│       ├── agents/
+│       ├── scripts/
+│       └── references/
 ├── scripts/
 │   ├── install-skill.sh
 │   ├── install-all.sh
