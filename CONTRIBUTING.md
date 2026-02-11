@@ -1,17 +1,27 @@
 # Contributing
 
-## Skill rules
+## Skill Structure
 
-1. Each skill lives at `skills/<skill-name>/`.
-2. Every skill must include `SKILL.md` with YAML frontmatter containing:
+1. Add canonical skill at `skills/<skill-name>/`.
+2. Add Claude plugin wrapper at `plugins/<skill-name>/`:
+   - `.claude-plugin/plugin.json`
+   - `commands/*.md`
+   - mirrored skill at `plugins/<skill-name>/skills/<skill-name>/`
+3. Include required `SKILL.md` frontmatter:
    - `name`
    - `description`
-3. `name` must match folder name and use kebab-case.
-4. Keep `SKILL.md` concise; place deep docs in `references/` and scripts in `scripts/`.
 
-## Pull request checklist
+## Sync Flow
 
-- Skill loads without path assumptions.
-- Scripts run on a representative sample.
-- Any metadata-sensitive workflows include validation steps.
-- README table updated with new skill entry.
+After editing `skills/<skill-name>/`, run:
+
+```bash
+bash scripts/sync-skill-to-plugin.sh <skill-name>
+```
+
+## Pull Request Checklist
+
+- Marketplace manifest updated if plugin list changed.
+- Command entrypoints exist for Claude plugin.
+- Codex install scripts validated (`install-skill.sh`, `uninstall-skill.sh`).
+- README install/uninstall steps remain accurate and user-level by default.

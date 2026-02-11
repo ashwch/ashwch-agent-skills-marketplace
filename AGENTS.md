@@ -2,23 +2,30 @@
 
 ## Purpose
 
-Maintain a personal marketplace of reusable agent skills.
+Maintain a personal marketplace of reusable agent skills for both Claude Code and Codex.
 
-## Repository conventions
+## Core Rules
 
-1. Skills live under `skills/<skill-name>/`.
-2. Each skill must include `SKILL.md` with YAML frontmatter:
+1. Canonical skill source lives in `skills/<skill-name>/`.
+2. Claude plugin mirror lives in `plugins/<skill-name>/skills/<skill-name>/`.
+3. Run `scripts/sync-skill-to-plugin.sh <skill-name>` after editing canonical skills.
+4. Every skill must include `SKILL.md` with YAML frontmatter:
    - `name`
    - `description`
-3. Skill folder name must match `name` exactly.
-4. Use kebab-case for skill names.
-5. Keep `SKILL.md` concise and move deep docs to `references/`.
-6. Put executable helpers in `scripts/`.
-7. Keep example commands portable; avoid machine-specific absolute paths.
+5. Skill folder name must match `name` exactly (kebab-case).
+6. Keep commands portable; avoid machine-specific paths in docs.
+7. Prefer user-level install guidance over project-level guidance.
 
-## Validation checklist for edits
+## Claude Packaging Rules
+
+1. Keep `.claude-plugin/marketplace.json` updated when adding/removing plugins.
+2. Each plugin requires `plugins/<plugin>/.claude-plugin/plugin.json`.
+3. Each plugin should expose at least one `commands/*.md` entrypoint.
+
+## Validation Checklist
 
 - Any referenced script path exists.
-- Installer scripts still work (`scripts/install-skill.sh`).
+- Codex install/uninstall scripts still work.
+- Claude install/uninstall instructions remain user-scope by default.
 - For metadata-sensitive skills, validation step is preserved and documented.
-- `README.md` skill table is updated.
+- `README.md` and `CONTRIBUTING.md` reflect current plugin/skill list.

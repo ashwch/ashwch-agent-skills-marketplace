@@ -1,0 +1,21 @@
+{
+  "name": "ashwch",
+  "version": "0.1.0",
+  "description": "Personal Claude Code plugins and agent skills curated by ashwch.",
+  "owner": {
+    "name": "ashwch"
+  },
+  "plugins": [
+    {
+      "name": "sony-raw-styled-jpeg",
+      "description": "Convert Sony ARW photos into high-quality styled JPEGs with EXIF timestamp preservation and validation.",
+      "version": "0.1.0",
+      "author": {
+        "name": "ashwch"
+      },
+      "source": "./plugins/sony-raw-styled-jpeg",
+      "category": "productivity",
+      "keywords": ["sony", "raw", "arw", "jpeg", "exif", "photos"]
+    }
+  ]
+}

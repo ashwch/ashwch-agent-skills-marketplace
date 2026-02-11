@@ -1,0 +1,8 @@
+{
+  "name": "sony-raw-styled-jpeg",
+  "version": "0.1.0",
+  "description": "Convert Sony ARW photos into high-quality styled JPEGs with EXIF timestamp preservation and validation.",
+  "author": {
+    "name": "ashwch"
+  }
+}
