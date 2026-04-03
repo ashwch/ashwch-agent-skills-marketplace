@@ -346,89 +346,121 @@ func processFile(inputURL: URL, outputURL: URL, profile: ProfileRow, context: CI
     return (true, nil)
 }
 
-let fileManager = FileManager.default
-let args = CommandLine.arguments.dropFirst()
-let inputDir = URL(fileURLWithPath: args.first ?? fileManager.currentDirectoryPath, isDirectory: true)
-let outputDir = URL(
-    fileURLWithPath: args.dropFirst().first ?? inputDir.appendingPathComponent("output", isDirectory: true).path,
-    isDirectory: true
-)
-let moodPreset = args.dropFirst(2).first ?? "none"
-if moodPreset != "none", moodPreset != "subtle" {
-    fputs("ERROR: mood preset must be 'none' or 'subtle'\n", stderr)
-    exit(2)
-}
+func run() {
+    let fileManager = FileManager.default
+    let args = CommandLine.arguments.dropFirst()
+    let inputDir = URL(fileURLWithPath: args.first ?? fileManager.currentDirectoryPath, isDirectory: true)
+    let outputDir = URL(
+        fileURLWithPath: args.dropFirst().first ?? inputDir.appendingPathComponent("output", isDirectory: true).path,
+        isDirectory: true
+    )
+    let moodPreset = args.dropFirst(2).first ?? "none"
+    if moodPreset != "none", moodPreset != "subtle" {
+        fputs("ERROR: mood preset must be 'none' or 'subtle'\n", stderr)
+        exit(2)
+    }
 
-let profileURL = inputDir.appendingPathComponent("profiling/raw_profile.csv")
-let profiles = try loadProfiles(from: profileURL)
-let context = CIContext(options: [
-    .cacheIntermediates: false,
-    .priorityRequestLow: true
-])
+    let profileURL = inputDir.appendingPathComponent("profiling/raw_profile.csv")
+    let profiles: [String: ProfileRow]
+    do {
+        profiles = try loadProfiles(from: profileURL)
+    } catch {
+        fputs("ERROR: Failed to load profiles from \(profileURL.path): \(error)\n", stderr)
+        exit(1)
+    }
 
-try fileManager.createDirectory(at: outputDir, withIntermediateDirectories: true)
+    let context = CIContext(options: [
+        .cacheIntermediates: false,
+        .priorityRequestLow: true
+    ])
 
-let files = try fileManager.contentsOfDirectory(at: inputDir, includingPropertiesForKeys: nil)
-    .filter { $0.pathExtension.lowercased() == "arw" }
-    .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    do {
+        try fileManager.createDirectory(at: outputDir, withIntermediateDirectories: true)
+    } catch {
+        fputs("ERROR: Failed to create output directory at \(outputDir.path): \(error)\n", stderr)
+        exit(1)
+    }
 
-let reportURL = outputDir.appendingPathComponent("profiled_style_report.csv")
-try "file,treatment,mood_mode,status,error\n".write(to: reportURL, atomically: true, encoding: .utf8)
+    let files: [URL]
+    do {
+        files = try fileManager.contentsOfDirectory(at: inputDir, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "arw" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    } catch {
+        fputs("ERROR: Failed to list input directory \(inputDir.path): \(error)\n", stderr)
+        exit(1)
+    }
 
-var success = 0
-var failure = 0
+    if files.isEmpty {
+        fputs("ERROR: No .ARW files found in \(inputDir.path)\n", stderr)
+        exit(1)
+    }
 
-for (index, inputURL) in files.enumerated() {
-    autoreleasepool {
-        guard let profile = profiles[inputURL.lastPathComponent] else {
-            failure += 1
-            let line = "\(inputURL.lastPathComponent),,none,failed,missing profile\n"
-            if let handle = try? FileHandle(forWritingTo: reportURL) {
-                defer { try? handle.close() }
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: Data(line.utf8))
+    let reportURL = outputDir.appendingPathComponent("profiled_style_report.csv")
+    do {
+        try "file,treatment,mood_mode,status,error\n".write(to: reportURL, atomically: true, encoding: .utf8)
+    } catch {
+        fputs("ERROR: Failed to initialize report at \(reportURL.path): \(error)\n", stderr)
+        exit(1)
+    }
+
+    var success = 0
+    var failure = 0
+
+    for (index, inputURL) in files.enumerated() {
+        autoreleasepool {
+            guard let profile = profiles[inputURL.lastPathComponent] else {
+                failure += 1
+                let line = "\(inputURL.lastPathComponent),,none,failed,missing profile\n"
+                if let handle = try? FileHandle(forWritingTo: reportURL) {
+                    defer { try? handle.close() }
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: Data(line.utf8))
+                }
+                print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) FAILED: missing profile")
+                return
             }
-            print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) FAILED: missing profile")
-            return
+
+            let baseName = inputURL.deletingPathExtension().lastPathComponent
+            let outputURL = outputDir.appendingPathComponent("\(baseName).jpg")
+            let moodModeValue = moodMode(for: profile, preset: moodPreset) ?? "none"
+            let result = processFile(
+                inputURL: inputURL,
+                outputURL: outputURL,
+                profile: profile,
+                context: context,
+                moodPreset: moodPreset
+            )
+            if result.0 {
+                success += 1
+                let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),ok,\n"
+                if let handle = try? FileHandle(forWritingTo: reportURL) {
+                    defer { try? handle.close() }
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: Data(line.utf8))
+                }
+                let moodTag = moodModeValue == "none" ? "" : " + \(moodModeValue)"
+                print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) -> \(outputURL.lastPathComponent) (\(profile.treatment)\(moodTag))")
+            } else {
+                failure += 1
+                let error = result.1 ?? "unknown error"
+                let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),failed,\(error.replacingOccurrences(of: ",", with: ";"))\n"
+                if let handle = try? FileHandle(forWritingTo: reportURL) {
+                    defer { try? handle.close() }
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: Data(line.utf8))
+                }
+                print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) FAILED: \(error)")
+            }
         }
+    }
 
-        let baseName = inputURL.deletingPathExtension().lastPathComponent
-        let outputURL = outputDir.appendingPathComponent("\(baseName).jpg")
-        let moodModeValue = moodMode(for: profile, preset: moodPreset) ?? "none"
-        let result = processFile(
-            inputURL: inputURL,
-            outputURL: outputURL,
-            profile: profile,
-            context: context,
-            moodPreset: moodPreset
-        )
-        if result.0 {
-            success += 1
-            let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),ok,\n"
-            if let handle = try? FileHandle(forWritingTo: reportURL) {
-                defer { try? handle.close() }
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: Data(line.utf8))
-            }
-            let moodTag = moodModeValue == "none" ? "" : " + \(moodModeValue)"
-            print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) -> \(outputURL.lastPathComponent) (\(profile.treatment)\(moodTag))")
-        } else {
-            failure += 1
-            let error = result.1 ?? "unknown error"
-            let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),failed,\(error.replacingOccurrences(of: ",", with: ";"))\n"
-            if let handle = try? FileHandle(forWritingTo: reportURL) {
-                defer { try? handle.close() }
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: Data(line.utf8))
-            }
-            print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) FAILED: \(error)")
-        }
+    print("Completed: \(success) succeeded, \(failure) failed")
+    print("Report: \(reportURL.path)")
+
+    if failure > 0 {
+        exit(2)
     }
 }
 
-print("Completed: \(success) succeeded, \(failure) failed")
-print("Report: \(reportURL.path)")
-
-if failure > 0 {
-    exit(2)
-}
+run()

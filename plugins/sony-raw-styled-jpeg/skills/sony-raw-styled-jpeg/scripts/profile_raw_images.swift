@@ -285,8 +285,8 @@ let files = try fileManager.contentsOfDirectory(at: inputDir, includingPropertie
     .sorted { $0.lastPathComponent < $1.lastPathComponent }
 
 if files.isEmpty {
-    print("No .ARW files found in \(inputDir.path)")
-    exit(0)
+    fputs("ERROR: No .ARW files found in \(inputDir.path)\n", stderr)
+    exit(1)
 }
 
 let context = CIContext(options: [
