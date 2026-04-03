@@ -1,4 +1,4 @@
 interface:
   display_name: "Sony RAW Styled JPEG"
-  short_description: "Interactive ARW to styled JPEG with EXIF lock"
-  default_prompt: "Use $sony-raw-styled-jpeg to ask me for output preferences, convert Sony ARW files into high-quality styled JPEGs, and validate EXIF capture timestamps."
+  short_description: "Exact or profiled Sony ARW to JPEG with EXIF lock"
+  default_prompt: "Use $sony-raw-styled-jpeg to choose between exact and profiled Sony ARW conversion, bucket mixed batches before styling, optionally add a subtle mood layer, and validate EXIF capture timestamps."

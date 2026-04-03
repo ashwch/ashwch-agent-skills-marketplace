@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "sony-raw-styled-jpeg",
-      "description": "Convert Sony ARW photos into high-quality styled JPEGs with EXIF timestamp preservation and validation.",
+      "description": "Convert Sony ARW photos into high-quality JPEGs using exact or profiled workflows with EXIF timestamp preservation and validation.",
       "version": "0.1.0",
       "author": {
         "name": "ashwch"

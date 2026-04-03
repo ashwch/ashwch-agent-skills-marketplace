@@ -25,7 +25,8 @@ ashwch-agent-skills-marketplace/
 │       ├── .claude-plugin/plugin.json
 │       ├── commands/
 │       │   ├── convert.md
-│       │   └── exact.md
+│       │   ├── exact.md
+│       │   └── profiled.md
 │       └── skills/
 │           └── sony-raw-styled-jpeg/
 │               ├── SKILL.md
@@ -50,7 +51,7 @@ ashwch-agent-skills-marketplace/
 
 | Name | Purpose |
 | --- | --- |
-| `sony-raw-styled-jpeg` | Convert Sony `.ARW` images into high-quality content-aware JPEG while preserving EXIF and validating timestamps. |
+| `sony-raw-styled-jpeg` | Convert Sony `.ARW` images into high-quality JPEGs using either exact one-pass conversion or a profiled adaptive workflow, while preserving EXIF and validating timestamps. |
 
 ## Claude Code: Install (User Scope)
 
@@ -71,6 +72,7 @@ claude plugin install sony-raw-styled-jpeg@ashwch
 ```text
 /sony-raw-styled-jpeg:convert
 /sony-raw-styled-jpeg:exact
+/sony-raw-styled-jpeg:profiled
 ```
 
 Optional helper:
@@ -128,7 +130,7 @@ python3 "$CODEX_HOME/skills/.system/skill-installer/scripts/install-skill-from-g
 Use in Codex:
 
 ```text
-Use $sony-raw-styled-jpeg to convert ARW images into styled JPEGs and validate EXIF timestamps.
+Use $sony-raw-styled-jpeg to choose between exact and profiled ARW conversion, optionally add subtle mood shaping, and validate EXIF timestamps.
 ```
 
 ## Codex: Uninstall
@@ -155,8 +157,10 @@ rm -rf "$CODEX_HOME/skills/sony-raw-styled-jpeg"
 ## Sony Skill Outputs
 
 - `<output>/MONxxxxx.jpg`
-- `<output>/style_report.csv`
+- `<output>/style_report.csv` or `<output>/profiled_style_report.csv`
 - `<output>/exif_validation.txt`
+- `<input>/profiling/raw_profile.csv` for profiled mode
+- `<input>/profiling/raw_profile_summary.txt` for profiled mode
 
 Details:
 
