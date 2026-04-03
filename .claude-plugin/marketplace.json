@@ -1,6 +1,6 @@
 {
   "name": "ashwch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Personal Claude Code plugins and agent skills curated by ashwch.",
   "owner": {
     "name": "ashwch"
@@ -9,7 +9,7 @@
     {
       "name": "sony-raw-styled-jpeg",
       "description": "Convert Sony ARW photos into high-quality JPEGs using exact or profiled workflows with EXIF timestamp preservation and validation.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "ashwch"
       },
