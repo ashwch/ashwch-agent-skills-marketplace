@@ -278,11 +278,16 @@ let outputDir = inputDir.appendingPathComponent("profiling", isDirectory: true)
 let reportURL = outputDir.appendingPathComponent("raw_profile.csv")
 let summaryURL = outputDir.appendingPathComponent("raw_profile_summary.txt")
 
-try fileManager.createDirectory(at: outputDir, withIntermediateDirectories: true)
-
-let files = try fileManager.contentsOfDirectory(at: inputDir, includingPropertiesForKeys: nil)
-    .filter { $0.pathExtension.lowercased() == "arw" }
-    .sorted { $0.lastPathComponent < $1.lastPathComponent }
+let files: [URL]
+do {
+    try fileManager.createDirectory(at: outputDir, withIntermediateDirectories: true)
+    files = try fileManager.contentsOfDirectory(at: inputDir, includingPropertiesForKeys: nil)
+        .filter { $0.pathExtension.lowercased() == "arw" }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+} catch {
+    fputs("ERROR: Failed to prepare profiling input/output: \(error)\n", stderr)
+    exit(2)
+}
 
 if files.isEmpty {
     fputs("ERROR: No .ARW files found in \(inputDir.path)\n", stderr)

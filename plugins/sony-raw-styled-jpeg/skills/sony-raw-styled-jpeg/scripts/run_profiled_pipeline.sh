@@ -51,7 +51,7 @@ if [[ -e "$OUTPUT_DIR" ]] && [[ ! -d "$OUTPUT_DIR" ]]; then
   exit 2
 fi
 
-if [[ -d "$OUTPUT_DIR" ]] && find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 | read -r _; then
+if [[ -d "$OUTPUT_DIR" ]] && find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
   echo "ERROR: output directory already exists and is not empty: $OUTPUT_DIR" >&2
   echo "ERROR: rename/remove it first or use the interactive runner to preserve it automatically." >&2
   exit 2
