@@ -4,11 +4,12 @@ set -euo pipefail
 # Interactive runner for Sony RAW -> styled JPEG conversion.
 #
 # This script intentionally asks the user for operational choices so a session
-# can be guided without editing commands manually. The underlying conversion
-# stays the same as run_exact_pipeline.sh.
+# can be guided without editing commands manually. It can run either the
+# exact one-pass pipeline or the profiled adaptive pipeline.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXACT_RUNNER="$SCRIPT_DIR/run_exact_pipeline.sh"
+PROFILED_RUNNER="$SCRIPT_DIR/run_profiled_pipeline.sh"
 
 prompt_default() {
   local message="$1"
@@ -81,21 +82,18 @@ if [[ "$scope" == "sample" ]]; then
   fi
 fi
 
-metadata_policy="$(prompt_choice "5) Metadata policy (full/capture-only)" "full" full capture-only)"
-if [[ "$metadata_policy" != "full" ]]; then
-  echo "NOTE: exact replication always preserves full EXIF. Continuing with full EXIF."
+workflow_mode="$(prompt_choice "5) Workflow mode (exact/profiled)" "profiled" exact profiled)"
+mood_preset="none"
+if [[ "$workflow_mode" == "profiled" ]]; then
+  mood_preset="$(prompt_choice "6) Mood layer (none/subtle)" "none" none subtle)"
 fi
 
-quality_profile="$(prompt_choice "6) Quality profile (exact/custom)" "exact" exact custom)"
-if [[ "$quality_profile" != "exact" ]]; then
-  echo "NOTE: exact pipeline is fixed to quality=1.0 and predefined style chains."
-  echo "NOTE: this runner will continue with exact mode to preserve reproducibility."
-fi
+preserve_existing="$(prompt_choice "7) If output folder exists, preserve it first? (yes/no)" "yes" yes no)"
 
-preview_choice="$(prompt_choice "7) Preview output picture paths? (yes/no)" "yes" yes no)"
+preview_choice="$(prompt_choice "8) Preview output picture paths? (yes/no)" "yes" yes no)"
 preview_count="3"
 if [[ "$preview_choice" == "yes" ]]; then
-  preview_count="$(prompt_default "8) How many preview paths to print" "3")"
+  preview_count="$(prompt_default "9) How many preview paths to print" "3")"
   if ! [[ "$preview_count" =~ ^[0-9]+$ ]] || [[ "$preview_count" -lt 1 ]]; then
     echo "ERROR: preview count must be a positive integer"
     exit 1
@@ -110,8 +108,12 @@ echo "  Scope: $scope"
 if [[ "$scope" == "sample" ]]; then
   echo "  Sample count: $sample_count"
 fi
-echo "  Metadata policy: full EXIF (enforced)"
-echo "  Quality profile: exact (enforced)"
+echo "  Workflow mode: $workflow_mode"
+if [[ "$workflow_mode" == "profiled" ]]; then
+  echo "  Mood layer: $mood_preset"
+fi
+echo "  EXIF preservation: full metadata (enforced)"
+echo "  Preserve existing output dir: $preserve_existing"
 if [[ "$preview_choice" == "yes" ]]; then
   echo "  Preview paths requested: $preview_count"
 fi
@@ -123,14 +125,53 @@ if [[ "$proceed" != "yes" ]]; then
 fi
 
 shopt -s nullglob
+final_output_dir="$input_dir/$output_subdir"
+
+prepare_output_dir() {
+  local target="$1"
+  local preserve_mode="$2"
+
+  if [[ ! -e "$target" ]]; then
+    return 0
+  fi
+
+  if [[ "$preserve_mode" == "yes" ]]; then
+    local timestamp
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    local backup_path="${target}_backup_${timestamp}"
+    mv "$target" "$backup_path"
+    echo "Preserved existing output dir: $backup_path"
+    return 0
+  fi
+
+  echo "ERROR: output folder already exists: $target"
+  echo "ERROR: choose a new output name or rerun with preserve=yes"
+  exit 2
+}
+
+if [[ "$workflow_mode" == "exact" ]]; then
+  runner="$EXACT_RUNNER"
+else
+  runner="$PROFILED_RUNNER"
+fi
 
 if [[ "$scope" == "all" ]]; then
-  bash "$EXACT_RUNNER" "$input_dir" "$output_subdir"
-  final_output_dir="$input_dir/$output_subdir"
-  final_style_report="$final_output_dir/style_report.csv"
+  prepare_output_dir "$final_output_dir" "$preserve_existing"
+  if [[ "$workflow_mode" == "exact" ]]; then
+    bash "$runner" "$input_dir" "$output_subdir"
+    final_report="$final_output_dir/style_report.csv"
+  else
+    bash "$runner" "$input_dir" "$output_subdir" "$mood_preset"
+    final_report="$final_output_dir/profiled_style_report.csv"
+    final_profile_csv="$input_dir/profiling/raw_profile.csv"
+    final_profile_summary="$input_dir/profiling/raw_profile_summary.txt"
+  fi
   final_exif_report="$final_output_dir/exif_validation.txt"
 else
-  mapfile -t raw_files < <(find "$input_dir" -maxdepth 1 \( -type f -o -type l \) \( -iname '*.ARW' -o -iname '*.arw' \) | sort)
+  raw_files=()
+  while IFS= read -r line; do
+    raw_files+=("$line")
+  done < <(find "$input_dir" -maxdepth 1 \( -type f -o -type l \) \( -iname '*.ARW' -o -iname '*.arw' \) | sort)
   if [[ "${#raw_files[@]}" -eq 0 ]]; then
     echo "ERROR: no ARW files found in $input_dir"
     exit 1
@@ -147,19 +188,31 @@ else
     ln -s "$raw" "$temp_dir/$(basename "$raw")"
   done
 
-  bash "$EXACT_RUNNER" "$temp_dir" "$output_subdir"
-
-  final_output_dir="$input_dir/$output_subdir"
+  prepare_output_dir "$final_output_dir" "$preserve_existing"
   mkdir -p "$final_output_dir"
+
+  if [[ "$workflow_mode" == "exact" ]]; then
+    bash "$runner" "$temp_dir" "$output_subdir"
+  else
+    bash "$runner" "$temp_dir" "$output_subdir" "$mood_preset"
+  fi
 
   for jpg in "$temp_dir/$output_subdir"/*.jpg; do
     cp "$jpg" "$final_output_dir/"
   done
 
-  final_style_report="$final_output_dir/style_report_sample.csv"
+  if [[ "$workflow_mode" == "exact" ]]; then
+    final_report="$final_output_dir/style_report_sample.csv"
+    cp "$temp_dir/$output_subdir/style_report.csv" "$final_report"
+  else
+    final_report="$final_output_dir/profiled_style_report_sample.csv"
+    final_profile_csv="$final_output_dir/raw_profile_sample.csv"
+    final_profile_summary="$final_output_dir/raw_profile_summary_sample.txt"
+    cp "$temp_dir/$output_subdir/profiled_style_report.csv" "$final_report"
+    cp "$temp_dir/profiling/raw_profile.csv" "$final_profile_csv"
+    cp "$temp_dir/profiling/raw_profile_summary.txt" "$final_profile_summary"
+  fi
   final_exif_report="$final_output_dir/exif_validation_sample.txt"
-
-  cp "$temp_dir/$output_subdir/style_report.csv" "$final_style_report"
   cp "$temp_dir/$output_subdir/exif_validation.txt" "$final_exif_report"
 fi
 
@@ -171,7 +224,10 @@ fi
 if [[ "$preview_choice" == "yes" ]]; then
   echo ""
   echo "Representative output picture paths"
-  mapfile -t previews < <(find "$final_output_dir" -maxdepth 1 -type f -iname '*.jpg' | sort | head -n "$preview_count")
+  previews=()
+  while IFS= read -r line; do
+    previews+=("$line")
+  done < <(find "$final_output_dir" -maxdepth 1 -type f -iname '*.jpg' | sort | head -n "$preview_count")
   if [[ "${#previews[@]}" -eq 0 ]]; then
     echo "  (No JPEG files found in $final_output_dir)"
   else
@@ -184,5 +240,9 @@ fi
 echo ""
 echo "Interactive run complete"
 echo "  Output dir: $final_output_dir"
-echo "  Style report: $final_style_report"
+echo "  Report: $final_report"
+if [[ "$workflow_mode" == "profiled" ]]; then
+  echo "  Profile CSV: $final_profile_csv"
+  echo "  Profile summary: $final_profile_summary"
+fi
 echo "  EXIF report: $final_exif_report"
