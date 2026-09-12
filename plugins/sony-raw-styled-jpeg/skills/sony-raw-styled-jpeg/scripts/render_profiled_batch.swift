@@ -230,7 +230,41 @@ func loadProfiles(from url: URL) throws -> [String: ProfileRow] {
     return rows
 }
 
-func applyTreatment(_ profile: ProfileRow, to image: CIImage, moodPreset: String) -> CIImage {
+func buildNaturalTwilightImage(_ image: CIImage, profile: ProfileRow) -> CIImage {
+    let exposure = min(0.65, max(-0.25, (0.22 - profile.avgLuma) * 1.30))
+    let shadowAmount = min(0.72, 0.44 + profile.shadowRatio * 0.22)
+    var output = applyFilter(name: "CIExposureAdjust", to: image, parameters: ["inputEV": exposure])
+    output = applyFilter(name: "CIHighlightShadowAdjust", to: output, parameters: [
+        "inputShadowAmount": shadowAmount,
+        "inputHighlightAmount": 0.62
+    ])
+    output = applyFilter(name: "CIColorControls", to: output, parameters: [
+        "inputSaturation": 0.78,
+        "inputBrightness": 0.0,
+        "inputContrast": 0.98
+    ])
+    output = applyFilter(name: "CIToneCurve", to: output, parameters: [
+        "inputPoint0": CIVector(x: 0, y: 0.003),
+        "inputPoint1": CIVector(x: 0.25, y: 0.24),
+        "inputPoint2": CIVector(x: 0.5, y: 0.49),
+        "inputPoint3": CIVector(x: 0.75, y: 0.72),
+        "inputPoint4": CIVector(x: 1, y: 0.92)
+    ])
+    output = applyFilter(name: "CINoiseReduction", to: output, parameters: [
+        "inputNoiseLevel": 0.045,
+        "inputSharpness": 0.16
+    ])
+    return applyFilter(name: "CISharpenLuminance", to: output, parameters: [
+        "inputSharpness": 0.12,
+        "inputRadius": 0.8
+    ])
+}
+
+func applyTreatment(_ profile: ProfileRow, to image: CIImage, renderPreset: String) -> CIImage {
+    if renderPreset == "natural-twilight" {
+        return buildNaturalTwilightImage(image, profile: profile)
+    }
+
     var out = applyAutoEnhance(to: image)
     let coolExcess = max(0.0, profile.blueRatio - profile.warmRatio)
     let lumaDeficit = max(0.0, 0.44 - profile.avgLuma)
@@ -315,14 +349,14 @@ func applyTreatment(_ profile: ProfileRow, to image: CIImage, moodPreset: String
         out = applyFilter(name: "CISharpenLuminance", to: out, parameters: ["inputSharpness": 0.18, "inputRadius": 0.9])
     }
 
-    if let mode = moodMode(for: profile, preset: moodPreset) {
+    if let mode = moodMode(for: profile, preset: renderPreset) {
         out = applyMoodLayer(to: out, profile: profile, mode: mode)
     }
 
     return out
 }
 
-func processFile(inputURL: URL, outputURL: URL, profile: ProfileRow, context: CIContext, moodPreset: String) -> (Bool, String?) {
+func processFile(inputURL: URL, outputURL: URL, profile: ProfileRow, context: CIContext, renderPreset: String) -> (Bool, String?) {
     guard var image = CIImage(contentsOf: inputURL, options: [.applyOrientationProperty: true]) else {
         return (false, "Unable to read RAW image")
     }
@@ -332,7 +366,7 @@ func processFile(inputURL: URL, outputURL: URL, profile: ProfileRow, context: CI
     }
 
     image = image.clampedToExtent().cropped(to: image.extent)
-    let styled = applyTreatment(profile, to: image, moodPreset: moodPreset)
+    let styled = applyTreatment(profile, to: image, renderPreset: renderPreset)
 
     guard let finalCG = context.createCGImage(styled, from: styled.extent) else {
         return (false, "Unable to rasterize styled image")
@@ -354,9 +388,9 @@ func run() {
         fileURLWithPath: args.dropFirst().first ?? inputDir.appendingPathComponent("output", isDirectory: true).path,
         isDirectory: true
     )
-    let moodPreset = args.dropFirst(2).first ?? "none"
-    if moodPreset != "none", moodPreset != "subtle" {
-        fputs("ERROR: mood preset must be 'none' or 'subtle'\n", stderr)
+    let renderPreset = args.dropFirst(2).first ?? "none"
+    if !["none", "subtle", "natural-twilight"].contains(renderPreset) {
+        fputs("ERROR: render preset must be 'none', 'subtle', or 'natural-twilight'\n", stderr)
         exit(2)
     }
 
@@ -423,28 +457,29 @@ func run() {
 
             let baseName = inputURL.deletingPathExtension().lastPathComponent
             let outputURL = outputDir.appendingPathComponent("\(baseName).jpg")
-            let moodModeValue = moodMode(for: profile, preset: moodPreset) ?? "none"
+            let treatmentValue = renderPreset == "natural-twilight" ? "natural_twilight" : profile.treatment
+            let moodModeValue = moodMode(for: profile, preset: renderPreset) ?? "none"
             let result = processFile(
                 inputURL: inputURL,
                 outputURL: outputURL,
                 profile: profile,
                 context: context,
-                moodPreset: moodPreset
+                renderPreset: renderPreset
             )
             if result.0 {
                 success += 1
-                let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),ok,\n"
+                let line = "\(inputURL.lastPathComponent),\(treatmentValue),\(moodModeValue),ok,\n"
                 if let handle = try? FileHandle(forWritingTo: reportURL) {
                     defer { try? handle.close() }
                     _ = try? handle.seekToEnd()
                     try? handle.write(contentsOf: Data(line.utf8))
                 }
                 let moodTag = moodModeValue == "none" ? "" : " + \(moodModeValue)"
-                print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) -> \(outputURL.lastPathComponent) (\(profile.treatment)\(moodTag))")
+                print("[\(index + 1)/\(files.count)] \(inputURL.lastPathComponent) -> \(outputURL.lastPathComponent) (\(treatmentValue)\(moodTag))")
             } else {
                 failure += 1
                 let error = result.1 ?? "unknown error"
-                let line = "\(inputURL.lastPathComponent),\(profile.treatment),\(moodModeValue),failed,\(error.replacingOccurrences(of: ",", with: ";"))\n"
+                let line = "\(inputURL.lastPathComponent),\(treatmentValue),\(moodModeValue),failed,\(error.replacingOccurrences(of: ",", with: ";"))\n"
                 if let handle = try? FileHandle(forWritingTo: reportURL) {
                     defer { try? handle.close() }
                     _ = try? handle.seekToEnd()

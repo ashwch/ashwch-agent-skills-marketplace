@@ -9,20 +9,21 @@ set -euo pipefail
 # - Preserves the same EXIF validation contract as the exact pipeline.
 #
 # Usage:
-#   bash run_profiled_pipeline.sh <input_dir> <output_subdir> [mood_preset]
+#   bash run_profiled_pipeline.sh <input_dir> <output_subdir> [render_preset]
 #
 # Example:
 #   bash run_profiled_pipeline.sh /path/to/arw-folder codex_output none
 #   bash run_profiled_pipeline.sh /path/to/arw-folder codex_output subtle
+#   bash run_profiled_pipeline.sh /path/to/arw-folder codex_output natural-twilight
 
 INPUT_DIR="${1:-.}"
 OUTPUT_SUBDIR="${2:-codex_output}"
-MOOD_PRESET="${3:-none}"
+RENDER_PRESET="${3:-none}"
 
-case "$MOOD_PRESET" in
-  none|subtle) ;;
+case "$RENDER_PRESET" in
+  none|subtle|natural-twilight) ;;
   *)
-    echo "ERROR: mood preset must be 'none' or 'subtle'" >&2
+    echo "ERROR: render preset must be 'none', 'subtle', or 'natural-twilight'" >&2
     exit 2
     ;;
 esac
@@ -67,7 +68,7 @@ echo "[3/5] Compiling profiled renderer"
 swiftc -module-cache-path "$MODULE_CACHE_DIR" "$RENDERER" -o "$RENDERER_BIN"
 
 echo "[4/5] Rendering profiled JPEG batch"
-"$RENDERER_BIN" "$INPUT_DIR" "$OUTPUT_DIR" "$MOOD_PRESET"
+"$RENDERER_BIN" "$INPUT_DIR" "$OUTPUT_DIR" "$RENDER_PRESET"
 
 echo "[5/5] Validating EXIF timestamps"
 swift -module-cache-path "$MODULE_CACHE_DIR" "$VERIFIER" "$INPUT_DIR" "$OUTPUT_DIR" | tee "$OUTPUT_DIR/exif_validation.txt"

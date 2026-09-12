@@ -1,6 +1,6 @@
 # Sony RAW -> Styled JPEG Playbook (First Principles + Exact Replication)
 
-This document explains the exact conversion pipeline we used, why each step exists, and how to rerun it reliably.
+This document explains the exact first-export pipeline, why each step exists, and how to rerun it reliably. For revisions after user review or deletion, use the curated revision workflow in `ADAPTIVE_BATCH_WORKFLOW.md`.
 
 ## 1) Goal
 
@@ -45,14 +45,16 @@ So we:
 - Classify into style buckets.
 - Apply style-specific CoreImage filter chains.
 
-### Principle D: Metadata is part of the asset
+### Principle D: Metadata and curation are part of the asset
 
-Capture timestamp and camera metadata are critical for cataloging and chronology.
+Capture metadata is critical for cataloging, and the set of retained files reflects user choices.
 
 So we:
 
 - Copy metadata from source RAW to output JPEG.
-- Validate timestamps across all files.
+- Validate timestamps across all files in the active scope.
+- Require every processed RAW to have an output during first export.
+- During revision, validate retained outputs only and never refill user-deleted gaps.
 - Fail validation if required metadata mismatches.
 
 ## 3) System Architecture (ASCII)
@@ -254,13 +256,20 @@ To replicate the same result behavior:
 
 ## 12) Verification Checklist
 
-Before accepting output:
+Before accepting a first export:
 
 1. Output JPEG count equals source ARW count (or sample count).
 2. `style_report.csv` exists and has one row per processed file.
 3. `exif_validation.txt` says `RESULT: PASS`.
-4. Spot check 3 files:
-   - source and output have identical `DateTimeOriginal`.
+4. Spot check 3 files for matching `DateTimeOriginal`.
+
+Before accepting a curated revision:
+
+1. Review staged JPEGs before applying them.
+2. Confirm intentionally missing JPEGs remain absent.
+3. Confirm approved local edits were excluded or skipped.
+4. Validate with `verify_datetime_original.swift <raw_dir> <output_dir> --existing-only`.
+5. Require `RESULT: PASS`; do not require output count to equal RAW count.
 
 ## 13) Troubleshooting Matrix
 
@@ -328,12 +337,11 @@ Core responsibilities:
 ### B) `verify_datetime_original.swift` (Validation gate)
 
 ```text
-run()
- ├── list ARW files
- ├── map ARW -> output JPG
- ├── compare EXIF/TIFF date fields
- └── print PASS/FAIL summary
+complete mode: list RAWs -> require matching JPEGs -> compare dates
+existing-only mode: list retained JPEGs -> require matching RAWs -> compare dates
 ```
+
+Use complete mode for first exports and `--existing-only` for curated revisions.
 
 Validation fields:
 

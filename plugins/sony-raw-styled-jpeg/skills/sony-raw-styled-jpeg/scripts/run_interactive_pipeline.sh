@@ -83,9 +83,9 @@ if [[ "$scope" == "sample" ]]; then
 fi
 
 workflow_mode="$(prompt_choice "5) Workflow mode (exact/profiled)" "profiled" exact profiled)"
-mood_preset="none"
+render_preset="none"
 if [[ "$workflow_mode" == "profiled" ]]; then
-  mood_preset="$(prompt_choice "6) Mood layer (none/subtle)" "none" none subtle)"
+  render_preset="$(prompt_choice "6) Render preset (none/subtle/natural-twilight)" "none" none subtle natural-twilight)"
 fi
 
 preserve_existing="$(prompt_choice "7) If output folder exists, preserve it first? (yes/no)" "yes" yes no)"
@@ -110,7 +110,7 @@ if [[ "$scope" == "sample" ]]; then
 fi
 echo "  Workflow mode: $workflow_mode"
 if [[ "$workflow_mode" == "profiled" ]]; then
-  echo "  Mood layer: $mood_preset"
+  echo "  Render preset: $render_preset"
 fi
 echo "  EXIF preservation: full metadata (enforced)"
 echo "  Preserve existing output dir: $preserve_existing"
@@ -161,7 +161,7 @@ if [[ "$scope" == "all" ]]; then
     bash "$runner" "$input_dir" "$output_subdir"
     final_report="$final_output_dir/style_report.csv"
   else
-    bash "$runner" "$input_dir" "$output_subdir" "$mood_preset"
+    bash "$runner" "$input_dir" "$output_subdir" "$render_preset"
     final_report="$final_output_dir/profiled_style_report.csv"
     final_profile_csv="$input_dir/profiling/raw_profile.csv"
     final_profile_summary="$input_dir/profiling/raw_profile_summary.txt"
@@ -194,7 +194,7 @@ else
   if [[ "$workflow_mode" == "exact" ]]; then
     bash "$runner" "$temp_dir" "$output_subdir"
   else
-    bash "$runner" "$temp_dir" "$output_subdir" "$mood_preset"
+    bash "$runner" "$temp_dir" "$output_subdir" "$render_preset"
   fi
 
   for jpg in "$temp_dir/$output_subdir"/*.jpg; do
