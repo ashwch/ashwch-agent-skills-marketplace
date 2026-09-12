@@ -5,10 +5,10 @@ description: Convert Sony ARW images to content-aware high-quality JPEG with EXI
 Use your `sony-raw-styled-jpeg` Skill to run the conversion pipeline.
 
 Execution protocol:
-1. Ask interactive setup questions: input folder, output folder, scope, workflow mode, mood layer if profiled, and preview count.
-2. Prefer `profiled` mode for mixed or iterative batches; use `exact` only when strict one-pass reproducibility is the goal.
-3. Run the interactive runner for user-guided execution.
-4. Report source count, output count, either style or treatment distribution, and EXIF validation result.
+1. Ask setup questions: input folder, output folder, scope, workflow mode, render preset, and preview count.
+2. Prefer `profiled` for a mixed first export, `revision` after the user has curated outputs, and `exact` only for strict one-pass reproducibility.
+3. For first exports, run the interactive runner. For revisions, use the staged revision runner and wait for visual approval before applying.
+4. Report source, output, replaced, and skipped counts plus EXIF validation.
 
 Preferred script path (from the skill bundle):
 
